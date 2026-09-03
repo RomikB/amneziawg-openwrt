@@ -1,0 +1,91 @@
+diff -uNr a/src/compat/compat.h b/src/compat/compat.h
+--- a/src/compat/compat.h	2026-06-11 22:58:33.000000000 +0000
++++ b/src/compat/compat.h	2026-08-27 11:22:10.332410464 +0000
+@@ -896,10 +896,6 @@
+ 
+ #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 200) || (LINUX_VERSION_CODE < KERNEL_VERSION(4, 20, 0) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 249)) || (LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 285)) || (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 320))) && LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0) && !defined(ISUBUNTU2004)
+ #define COMPAT_INIT_CRYPTO
+-#define blake2s_init zinc_blake2s_init
+-#define blake2s_init_key zinc_blake2s_init_key
+-#define blake2s_update zinc_blake2s_update
+-#define blake2s_final zinc_blake2s_final
+ #endif
+ #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 5, 0) && LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)
+ #define blake2s_hmac zinc_blake2s_hmac
+@@ -1103,11 +1099,8 @@
+ 		return htons(ETH_P_IPV6);
+ 	return 0;
+ }
+-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0) || defined(ISRHEL8)
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 8, 0) || defined(ISRHEL8)
+ static const struct header_ops ip_tunnel_header_ops = { .parse_protocol = ip_tunnel_parse_protocol };
+-#else
+-#define header_ops hard_header_len
+-#define ip_tunnel_header_ops *(char *)0 - (char *)0
+ #endif
+ #endif
+ 
+@@ -1404,7 +1397,7 @@
+ #include <crypto/blake2s.h>
+ #define blake2s_ctx blake2s_state
+ #define blake2s(key, keylen, in, inlen, out, outlen) \
+-	blake2s(out, in, key, outlen, inlen, keylen)
++	(blake2s)((u8 *)(out), (const u8 *)(in), (const u8 *)(key), (size_t)(outlen), (size_t)(inlen), (size_t)(keylen))
+ #endif
+ 
+ #endif /* _WG_COMPAT_H */
+diff -uNr a/src/crypto/Kbuild.include b/src/crypto/Kbuild.include
+--- a/src/crypto/Kbuild.include	2026-06-11 22:58:33.000000000 +0000
++++ b/src/crypto/Kbuild.include	2026-08-27 11:22:10.332592824 +0000
+@@ -31,8 +31,10 @@
+ 
+ zinc-y += chacha20poly1305.o
+ 
++ifeq ($(wildcard $(srctree)/include/crypto/blake2s.h),)
+ zinc-y += blake2s/blake2s.o
+ zinc-$(CONFIG_ZINC_ARCH_X86_64) += blake2s/blake2s-x86_64.o
++endif
+ 
+ zinc-y += curve25519/curve25519.o
+ zinc-$(CONFIG_ZINC_ARCH_ARM) += curve25519/curve25519-arm.o
+diff -uNr a/src/crypto/zinc.h b/src/crypto/zinc.h
+--- a/src/crypto/zinc.h	2026-06-11 22:58:33.000000000 +0000
++++ b/src/crypto/zinc.h	2026-08-27 11:22:10.332685354 +0000
+@@ -9,7 +9,11 @@
+ int chacha20_mod_init(void);
+ int poly1305_mod_init(void);
+ int chacha20poly1305_mod_init(void);
++#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 200) || (LINUX_VERSION_CODE < KERNEL_VERSION(4, 20, 0) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 249)) || (LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 285)) || (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 320))) && LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0)
++static inline int blake2s_mod_init(void) { return 0; }
++#else
+ int blake2s_mod_init(void);
++#endif
+ int curve25519_mod_init(void);
+ 
+ #endif
+diff -uNr a/src/device.c b/src/device.c
+--- a/src/device.c	2026-06-11 22:58:33.000000000 +0000
++++ b/src/device.c	2026-08-27 11:22:32.859566690 +0000
+@@ -300,7 +300,11 @@ static void wg_setup(struct net_device *dev)
+ 			     max(sizeof(struct ipv6hdr), sizeof(struct iphdr));
+ 
+ 	dev->netdev_ops = &netdev_ops;
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 8, 0)
+ 	dev->header_ops = &ip_tunnel_header_ops;
++#else
++	dev->header_ops = NULL;
++#endif
+ 	dev->hard_header_len = 0;
+ 	dev->addr_len = 0;
+ 	dev->needed_headroom = DATA_PACKET_HEAD_ROOM;
+diff -uNr a/src/main.c b/src/main.c
+--- a/src/main.c	2026-06-11 22:58:33.000000000 +0000
++++ b/src/main.c	2026-08-27 11:22:10.332863436 +0000
+@@ -11,6 +11,7 @@
+ #include "ratelimiter.h"
+ #include "netlink.h"
+ #include "uapi/wireguard.h"
++#include "crypto/zinc.h"
+ 
+ #include <linux/init.h>
+ #include <linux/module.h>

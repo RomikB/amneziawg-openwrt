@@ -5,32 +5,34 @@ PKG_NAME:=kmod-amneziawg
 PKG_VERSION:=1.0.20260611
 PKG_RELEASE:=1
 
-PKG_SOURCE_PROTO:=git
-PKG_SOURCE_URL:=https://github.com/amnezia-vpn/amneziawg-linux-kernel-module.git
-# Version: latest stable release tag
-PKG_SOURCE_VERSION:=v$(PKG_VERSION)
-PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)
+PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
+PKG_SOURCE_URL:=https://codeload.github.com/amnezia-vpn/amneziawg-linux-kernel-module/tar.gz/v$(PKG_VERSION)?
+PKG_HASH:=e062ecc9f1d89eeafa9f56a29473372a1d796ee061eaa8c7b61eeb51c38b80d6
+
+PKG_BUILD_DIR:=$(KERNEL_BUILD_DIR)/amneziawg-linux-kernel-module-$(PKG_VERSION)
 MAKE_PATH:=src
 
 include $(INCLUDE_DIR)/package.mk
 
 define KernelPackage/amneziawg
-	SECTION:=kernel
-	CATEGORY:=Kernel modules
 	SUBMENU:=Network Support
 	TITLE:=AmneziaWG VPN Kernel Module
 	FILES:=$(PKG_BUILD_DIR)/$(MAKE_PATH)/amneziawg.ko
 	DEPENDS:= \
 		+kmod-udptunnel4 \
 		+kmod-udptunnel6 \
-		+kmod-crypto-lib-chacha20poly1305 \
-		+kmod-crypto-lib-curve25519
+		$(if $(call kernel_patchver_ge,5.6), \
+			+kmod-crypto-lib-chacha20poly1305 \
+			+kmod-crypto-lib-curve25519 \
+		)
 endef
 
 define Build/Prepare
 	$(call Build/Prepare/Default)
-	mkdir -p $(PKG_BUILD_DIR)/$(MAKE_PATH)/kernel
-	$(CP) $(LINUX_DIR)/* $(PKG_BUILD_DIR)/$(MAKE_PATH)/kernel/
+	# Kernel sourcetree is only needed for Linux >= 5.6
+	$(if $(call kernel_patchver_ge,5.6), \
+		ln -sf $(LINUX_DIR) $(PKG_BUILD_DIR)/$(MAKE_PATH)/kernel; \
+	)
 endef
 
 define Build/Compile

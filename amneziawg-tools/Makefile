@@ -4,16 +4,14 @@ PKG_NAME:=amneziawg-tools
 PKG_VERSION:=1.0.20260618
 PKG_RELEASE:=1
 
-PKG_SOURCE_PROTO:=git
-PKG_SOURCE_URL:=https://github.com/amnezia-vpn/amneziawg-tools.git
-# Version: latest stable release tag
-# TODO: при следующем обновлении убрать -2
-PKG_SOURCE_VERSION:=v$(PKG_VERSION)-2
+PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
+PKG_SOURCE_URL:=https://codeload.github.com/amnezia-vpn/amneziawg-tools/tar.gz/v$(PKG_VERSION)-2?
+PKG_HASH:=cbda09c90d0740b6c3d39622da9f96cfdc2b83459d45973aadd7bf77518fdf10
 
 PKG_LICENSE:=GPL-2.0
 PKG_LICENSE_FILES:=COPYING
 
-PKG_BUILD_DIR=$(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)
+PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)-2
 
 include $(INCLUDE_DIR)/package.mk
 
