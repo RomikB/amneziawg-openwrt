@@ -1,6 +1,6 @@
 diff -uNr a/src/compat/compat.h b/src/compat/compat.h
---- a/src/compat/compat.h	2026-06-11 22:58:33.000000000 +0000
-+++ b/src/compat/compat.h	2026-08-27 11:22:10.332410464 +0000
+--- a/src/compat/compat.h
++++ b/src/compat/compat.h
 @@ -896,10 +896,6 @@
  
  #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 200) || (LINUX_VERSION_CODE < KERNEL_VERSION(4, 20, 0) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 249)) || (LINUX_VERSION_CODE < KERNEL_VERSION(4, 15, 0) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 285)) || (LINUX_VERSION_CODE < KERNEL_VERSION(4, 10, 0) && LINUX_VERSION_CODE >= KERNEL_VERSION(4, 9, 320))) && LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0) && !defined(ISUBUNTU2004)
@@ -33,10 +33,66 @@ diff -uNr a/src/compat/compat.h b/src/compat/compat.h
 +	(blake2s)((u8 *)(out), (const u8 *)(in), (const u8 *)(key), (size_t)(outlen), (size_t)(inlen), (size_t)(keylen))
  #endif
  
- #endif /* _WG_COMPAT_H */
+ #if LINUX_VERSION_CODE < KERNEL_VERSION(7, 1, 0) && !IS_ENABLED(CONFIG_IPV6)
+@@ -1415,7 +1408,54 @@
+ }
+ #endif
+ 
+-#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 16, 0)
++#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 5, 0)
++#include <asm/unaligned.h>
++#include <crypto/algapi.h>
++#include <crypto/chacha.h>
++#define CHACHA_KEY_WORDS	8
++#define CHACHA_BLOCK_SIZE	64
++#define CHACHA_STATE_WORDS	(CHACHA_BLOCK_SIZE / sizeof(u32))
++
++struct chacha_state {
++	u32 x[CHACHA_STATE_WORDS];
++};
++
++static inline void chacha_init(struct chacha_state *state, const u32 *key, const u8 *iv)
++{
++	state->x[0]  = 0x61707865;
++	state->x[1]  = 0x3320646e;
++	state->x[2]  = 0x79622d32;
++	state->x[3]  = 0x6b206574;
++	state->x[4]  = key[0];
++	state->x[5]  = key[1];
++	state->x[6]  = key[2];
++	state->x[7]  = key[3];
++	state->x[8]  = key[4];
++	state->x[9]  = key[5];
++	state->x[10] = key[6];
++	state->x[11] = key[7];
++	state->x[12] = get_unaligned_le32(iv +  0);
++	state->x[13] = get_unaligned_le32(iv +  4);
++	state->x[14] = get_unaligned_le32(iv +  8);
++	state->x[15] = get_unaligned_le32(iv + 12);
++}
++
++static inline void chacha20_crypt(struct chacha_state *state, u8 *dst, const u8 *src, unsigned int bytes)
++{
++	u8 stream[CHACHA_BLOCK_SIZE] __aligned(sizeof(long));
++	while (bytes >= CHACHA_BLOCK_SIZE) {
++		chacha20_block(state->x, stream);
++		crypto_xor_cpy(dst, src, stream, CHACHA_BLOCK_SIZE);
++		bytes -= CHACHA_BLOCK_SIZE;
++		dst += CHACHA_BLOCK_SIZE;
++		src += CHACHA_BLOCK_SIZE;
++	}
++	if (bytes) {
++		chacha20_block(state->x, stream);
++		crypto_xor_cpy(dst, src, stream, bytes);
++	}
++}
++#elif LINUX_VERSION_CODE < KERNEL_VERSION(6, 16, 0)
+ #include <crypto/chacha.h>
+ #define CHACHA_KEY_WORDS	8
+ #ifndef CHACHA_STATE_WORDS
 diff -uNr a/src/crypto/Kbuild.include b/src/crypto/Kbuild.include
---- a/src/crypto/Kbuild.include	2026-06-11 22:58:33.000000000 +0000
-+++ b/src/crypto/Kbuild.include	2026-08-27 11:22:10.332592824 +0000
+--- a/src/crypto/Kbuild.include
++++ b/src/crypto/Kbuild.include
 @@ -31,8 +31,10 @@
  
  zinc-y += chacha20poly1305.o
@@ -49,8 +105,8 @@ diff -uNr a/src/crypto/Kbuild.include b/src/crypto/Kbuild.include
  zinc-y += curve25519/curve25519.o
  zinc-$(CONFIG_ZINC_ARCH_ARM) += curve25519/curve25519-arm.o
 diff -uNr a/src/crypto/zinc.h b/src/crypto/zinc.h
---- a/src/crypto/zinc.h	2026-06-11 22:58:33.000000000 +0000
-+++ b/src/crypto/zinc.h	2026-08-27 11:22:10.332685354 +0000
+--- a/src/crypto/zinc.h
++++ b/src/crypto/zinc.h
 @@ -9,7 +9,11 @@
  int chacha20_mod_init(void);
  int poly1305_mod_init(void);
@@ -64,9 +120,9 @@ diff -uNr a/src/crypto/zinc.h b/src/crypto/zinc.h
  
  #endif
 diff -uNr a/src/device.c b/src/device.c
---- a/src/device.c	2026-06-11 22:58:33.000000000 +0000
-+++ b/src/device.c	2026-08-27 11:22:32.859566690 +0000
-@@ -300,7 +300,11 @@ static void wg_setup(struct net_device *dev)
+--- a/src/device.c
++++ b/src/device.c
+@@ -301,7 +301,11 @@
  			     max(sizeof(struct ipv6hdr), sizeof(struct iphdr));
  
  	dev->netdev_ops = &netdev_ops;
@@ -79,8 +135,8 @@ diff -uNr a/src/device.c b/src/device.c
  	dev->addr_len = 0;
  	dev->needed_headroom = DATA_PACKET_HEAD_ROOM;
 diff -uNr a/src/main.c b/src/main.c
---- a/src/main.c	2026-06-11 22:58:33.000000000 +0000
-+++ b/src/main.c	2026-08-27 11:22:10.332863436 +0000
+--- a/src/main.c
++++ b/src/main.c
 @@ -11,6 +11,7 @@
  #include "ratelimiter.h"
  #include "netlink.h"
