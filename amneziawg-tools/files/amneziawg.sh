@@ -37,11 +37,15 @@ proto_amneziawg_init_config() {
 	proto_config_add_string "awg_i3"
 	proto_config_add_string "awg_i4"
 	proto_config_add_string "awg_i5"
+	# Tracked by netifd to detect peer config changes from LuCI Save&Apply.
+	# Updated automatically by luci-proto-amneziawg on each save.
+	proto_config_add_string "peers_hash"
 # shellcheck disable=SC2034
 	available=1
 # shellcheck disable=SC2034
 	no_proto_task=1
 }
+
 
 proto_amneziawg_is_kernel_mode() {
 	if [ ! -e /sys/module/amneziawg ]; then
@@ -222,8 +226,12 @@ proto_amneziawg_setup() {
 
 	if proto_amneziawg_is_kernel_mode; then
 		logger -t "amneziawg" "info: using kernel-space kmod-amneziawg for ${AWG}"
-		ip link del dev "${config}" 2>/dev/null
-		ip link add dev "${config}" type amneziawg
+		# Only delete and recreate the interface if it does not already exist.
+		# Preserving the existing interface allows syncconf to update peers
+		# gracefully without dropping unrelated sessions.
+		if ! ip link show dev "${config}" > /dev/null 2>&1; then
+			ip link add dev "${config}" type amneziawg
+		fi
 	else
 		logger -t "amneziawg" "info: using user-space amneziawg-go for ${AWG}"
 		rm -f "/var/run/amneziawg/${config}.sock"
@@ -297,9 +305,16 @@ proto_amneziawg_setup() {
 	fi
 	config_foreach proto_amneziawg_setup_peer "amneziawg_${config}"
 
-	# Apply configuration file
-	${AWG} setconf "${config}" "${awg_cfg}"
-	AWG_RETURN=$?
+	# Apply configuration: prefer syncconf (graceful, preserves sessions for
+	# unchanged peers) when the interface is already running, fall back to
+	# setconf (full replace, safe on a freshly created interface).
+	if ${AWG} syncconf "${config}" "${awg_cfg}" 2>/dev/null; then
+		AWG_RETURN=0
+		logger -t "amneziawg" "info: peer config synced for ${config}"
+	else
+		${AWG} setconf "${config}" "${awg_cfg}"
+		AWG_RETURN=$?
+	fi
 
 	rm -f "${awg_cfg}"
 

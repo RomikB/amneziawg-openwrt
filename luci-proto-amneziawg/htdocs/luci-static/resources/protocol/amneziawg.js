@@ -301,6 +301,35 @@ return network.registerProtocol('amneziawg', {
 		o = s.taboption('peers', form.SectionValue, '_peers', form.GridSection, 'amneziawg_%s'.format(s.section));
 		o.depends('proto', 'amneziawg');
 
+		// Hook into the parent section's parse() to compute and write peers_hash
+		// after each Save & Apply. peers_hash is registered in amneziawg.sh via
+		// proto_config_add_string("peers_hash"), so netifd tracks it as a managed
+		// interface parameter. When it changes, netifd restarts the amneziawg
+		// interface, applying the updated peer configuration without requiring a
+		// manual "ifdown / ifup".
+		var _origParse = s.parse;
+		s.parse = function(section_id) {
+			var self = this;
+			return Promise.resolve(_origParse.call(self, section_id)).then(function() {
+				var peers = uci.sections('network', 'amneziawg_%s'.format(section_id));
+				// Build a deterministic string covering all peer parameters that
+				// affect the running amneziawg interface configuration.
+				var hash = peers.map(function(p) {
+					return [
+						p.public_key         || '',
+						L.toArray(p.allowed_ips).slice().sort().join(','),
+						p.endpoint_host      || '',
+						p.endpoint_port      || '',
+						p.persistent_keepalive || '0',
+						p.disabled           || '0'
+					].join('|');
+				}).sort().join(':');
+				// Write only if changed to avoid spurious netifd restarts.
+				if (hash !== (uci.get('network', section_id, 'peers_hash') || ''))
+					uci.set('network', section_id, 'peers_hash', hash || '-');
+			});
+		};
+
 		ss = o.subsection;
 		ss.anonymous = true;
 		ss.addremove = true;
