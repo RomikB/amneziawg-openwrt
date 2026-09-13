@@ -78,7 +78,7 @@ const methods = {
 							name: last_device,
 							public_key: record[2],
 							listen_port: record[3],
-							fwmark: record[4],
+							fwmark: (length(record) >= 30) ? record[29] : record[4],
 							peers: []
 						};
 

@@ -156,3 +156,71 @@ msgstr ""
 "Не определен фиксированный порт прослушивания интерфейса, поэтому узлы могут "
 "оказаться не в состоянии инициировать соединения с этим экземпляром "
 "AmneziaWG!"
+msgid "Header Protection Key"
+msgstr "Ключ защиты заголовков"
+
+msgid "Optional. Base64-encoded 32-byte key for packet header protection against DPI."
+msgstr "Необязательно. 32-байтный Base64 ключ для защиты заголовков пакетов от DPI."
+
+msgid "Content Padding Addition"
+msgstr "Дополнительный паддинг данных"
+
+msgid "Optional. Additional random padding added to transport packets. Single value or range (0-65535)."
+msgstr "Необязательно. Дополнительный случайный паддинг к транспортным пакетам. Число или диапазон (0-65535)."
+
+msgid "Rekey After Time"
+msgstr "Время смены ключа (Rekey After Time)"
+
+msgid "Optional. Session rekey initiation time in seconds. Single value or range (0-65535)."
+msgstr "Необязательно. Время инициации смены сессионного ключа в секундах. Число или диапазон (0-65535)."
+
+msgid "Rekey Timeout"
+msgstr "Таймаут смены ключа (Rekey Timeout)"
+
+msgid "Optional. Rekey attempt timeout in seconds. Single value or range (0-65535)."
+msgstr "Необязательно. Таймаут попытки смены ключа в секундах. Число или диапазон (0-65535)."
+
+msgid "Reject After Time"
+msgstr "Время отбрасывания пакетов (Reject After Time)"
+
+msgid "Optional. Time in seconds after which un-rekeyed packets are rejected. Single value or range (0-65535)."
+msgstr "Необязательно. Время в секундах, после которого пакеты старой сессии отбрасываются. Число или диапазон (0-65535)."
+
+msgid "Keepalive Timeout"
+msgstr "Таймаут Keepalive"
+
+msgid "Optional. Keepalive timeout in seconds during handshake. Single value or range (0-65535)."
+msgstr "Необязательно. Таймаут keepalive-пакетов при рукопожатии в секундах. Число или диапазон (0-65535)."
+
+msgid "Max Handshake Attempts"
+msgstr "Макс. попыток рукопожатия"
+
+msgid "Optional. Maximum handshake attempts before retry backoff. Single value or range (0-65535)."
+msgstr "Необязательно. Максимальное число попыток рукопожатия до паузы. Число или диапазон (0-65535)."
+
+msgid "Random Trailers"
+msgstr "Случайные трейлеры (Random Trailers)"
+
+msgid "Optional. Append random trailers to packets to obscure packet length patterns."
+msgstr "Необязательно. Добавление случайных хвостов к пакетам для сокрытия их размера от DPI."
+
+msgid "Disable Cookies"
+msgstr "Отключить Cookies (Disable Cookies)"
+
+msgid "Optional. Disable cookie reply mechanism under heavy load."
+msgstr "Необязательно. Отключение отправки cookie-ответов при высокой нагрузке на интерфейс."
+
+msgid "Handshake initiation packet type header. Supports single value or range (e.g. 1000-2000)."
+msgstr "Тип заголовка пакета инициации рукопожатия. Поддерживает число или диапазон (напр. 1000-2000)."
+
+msgid "Handshake response packet type header. Supports single value or range (e.g. 1000-2000)."
+msgstr "Тип заголовка пакета ответа на рукопожатие. Поддерживает число или диапазон (напр. 1000-2000)."
+
+msgid "Handshake cookie packet type header. Supports single value or range (e.g. 1000-2000)."
+msgstr "Тип заголовка пакета cookie. Поддерживает число или диапазон (напр. 1000-2000)."
+
+msgid "Transport packet type header. Supports single value or range (e.g. 1000-2000)."
+msgstr "Тип заголовка транспортного пакета. Поддерживает число или диапазон (напр. 1000-2000)."
+
+msgid "Optional. Seconds between keep alive messages. Supports single value or range (e.g. 20-25). Default is 0 (disabled). Recommended value if this device is behind a NAT is 25."
+msgstr "Необязательно. Интервал между keepalive-сообщениями в секундах. Поддерживает число или диапазон (напр. 20-25). По умолчанию 0 (отключено)."
