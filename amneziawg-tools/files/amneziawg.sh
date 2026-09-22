@@ -351,10 +351,10 @@ proto_amneziawg_setup() {
 	if [ "${awg_max_handshake_attempts}" ]; then
 		echo "MaxHandshakeAttempts=${awg_max_handshake_attempts}" >> "${awg_cfg}"
 	fi
-	if [ "${awg_random_trailers}" -eq 1 ]; then
+	if [ "${awg_random_trailers}" -ne 0 ]; then
 		echo "RandomTrailers=on" >> "${awg_cfg}"
 	fi
-	if [ "${awg_disable_cookies}" -eq 1 ]; then
+	if [ "${awg_disable_cookies}" -ne 0 ]; then
 		echo "DisableCookies=on" >> "${awg_cfg}"
 	fi
 	config_foreach proto_amneziawg_setup_peer "amneziawg_${config}"
